@@ -37,6 +37,44 @@ docker compose up -d --build
 (a primeira vez sobe um servico `migrate` que roda as migrations e sai;
 os demais esperam ele terminar com sucesso antes de subir)
 
+## Deploy numa VPS que ja roda outros servicos
+
+Se a VPS ja tem um nginx nativo (fora do Docker) ocupando as portas 80/443
+para outro site, o `docker compose` desta stack **nao** disputa essa porta:
+o container `nginx` so publica em `127.0.0.1:${NGINX_PORT:-8080}` (loopback,
+nao exposto na internet). Configure o nginx do host para repassar cada
+dominio de nicho para esse endereco - um `server{}` por dominio, apontando
+para a mesma porta interna (a resolucao de qual site aparece e feita pelo
+Laravel via `Host`, entao todos os dominios podem apontar para a mesma
+porta 8080):
+
+```nginx
+server {
+    listen 80;
+    server_name economiahoje.com.br www.economiahoje.com.br;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Depois `certbot --nginx -d economiahoje.com.br` por dominio para HTTPS, do
+jeito normal. Se preferir outra porta interna (ex: ja tem algo em 8080),
+defina `NGINX_PORT=8090` no `.env` antes do `docker compose up`.
+
+### Reaproveitando uma API do DeepSeek ja configurada
+
+Se ja existe outra automacao na mesma VPS com uma `DEEPSEEK_API_KEY`
+funcional (mesmo provedor hospedado, `https://api.deepseek.com`), basta
+copiar a mesma chave para `DEEPSEEK_API_KEY` no `.env` deste projeto -
+nao ha necessidade de gerar uma chave nova nem de rodar nada localmente,
+o DeepSeek em si e sempre uma API hospedada, nunca inferencia local. Ajuste
+`DEEPSEEK_MODEL` para o mesmo modelo que a outra automacao usa, se for
+diferente do default (`deepseek-v4-flash`).
+
 ## Pipeline de automacao
 
 1. **Ingestao (`FetchNewsSourceJob`, agendado a cada hora)** - le fatos

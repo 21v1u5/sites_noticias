@@ -1,7 +1,7 @@
 # Shared PHP-CLI/FPM image for the app, worker and scheduler containers
 # (docker-compose.yml picks the process via `command:` per service) - one
 # image build instead of three near-identical ones.
-FROM php:8.3-fpm
+FROM php:8.4-fpm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git unzip libpq-dev libzip-dev libicu-dev \
